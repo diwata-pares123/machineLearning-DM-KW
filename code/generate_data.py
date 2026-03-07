@@ -5,69 +5,78 @@ import os
 # Create the data directory if it doesn't exist
 os.makedirs("../data", exist_ok=True)
 
-# Our 16 Skincare Items
+# Our 16 Gaming E-commerce Items (Meets the >= 15 unique items rule)
 ITEMS = [
-    "Gentle Cleanser", "Foaming Cleanser", "Exfoliating Toner", "Hydrating Toner",
-    "Vitamin C Serum", "Niacinamide Serum", "Hyaluronic Acid Serum", "Lightweight Moisturizer",
-    "Heavy Ceramide Cream", "Mineral Sunscreen SPF 50", "Chemical Sunscreen SPF 50", 
-    "Snail Mucin Essence", "Pimple Patches", "Clay Mask", "Sheet Mask", "Lip Sleeping Mask"
+    "PlayStation 5 Console", "DualSense Wireless Controller", "Spider-Man 2 (PS5)", 
+    "Nintendo Switch OLED", "Zelda: Tears of the Kingdom", "Switch Pro Controller",
+    "Xbox Series X Console", "Halo Infinite (Xbox)", "Xbox Wireless Controller",
+    "Mechanical Gaming Keyboard", "Wireless Gaming Mouse", "XL RGB Mousepad",
+    "27-inch 144Hz Gaming Monitor", "Noise-Cancelling Gaming Headset", 
+    "1TB NVMe SSD", "Ergonomic Gaming Chair"
 ]
 
-def generate_transactions(num_transactions, season):
+def generate_transactions(num_transactions, phase):
     transactions = []
     
     for i in range(1, num_transactions + 1):
         basket = []
         
-        # 1. Base Routine (Everyone buys a cleanser and moisturizer)
-        basket.append(random.choice(["Gentle Cleanser", "Foaming Cleanser"]))
+        # 1. Base Logic (General Gamers)
+        # People usually buy a console or a PC peripheral as a base item
+        base_choice = random.choice(["Console Gamer", "PC Gamer"])
         
-        # 2. Inject Seasonal Trends (The "Self-Learning" triggers)
-        if season == "Summer":
-            # Summer Bundle: Vitamin C + Sunscreen + Light Moisturizer
-            if random.random() > 0.4:  # 60% chance
-                basket.extend(["Vitamin C Serum", "Mineral Sunscreen SPF 50", "Lightweight Moisturizer"])
-            # Occasional breakout
-            if random.random() > 0.7:
-                basket.append("Pimple Patches")
-                
-        elif season == "Winter":
-            # Winter Bundle: Hydration + Heavy Cream + Lip Mask
-            if random.random() > 0.4:  # 60% chance
-                basket.extend(["Hyaluronic Acid Serum", "Heavy Ceramide Cream", "Lip Sleeping Mask"])
-            # Extra hydration
-            if random.random() > 0.7:
-                basket.append("Sheet Mask")
-                
-        elif season == "Transition":
-            # A messy mix of both as seasons change
-            if random.random() > 0.6:
-                basket.extend(["Vitamin C Serum", "Lightweight Moisturizer"])
-            if random.random() > 0.6:
-                basket.extend(["Hyaluronic Acid Serum", "Heavy Ceramide Cream"])
+        if base_choice == "Console Gamer":
+            # Pick a random console
+            basket.append(random.choice(["PlayStation 5 Console", "Nintendo Switch OLED", "Xbox Series X Console"]))
+        else:
+            # PC gamers usually start with a mouse or keyboard
+            basket.append(random.choice(["Mechanical Gaming Keyboard", "Wireless Gaming Mouse"]))
 
-        # 3. Add random impulse buys to create noise
-        num_random_items = random.randint(0, 3)
+        # 2. Inject Data Drift / Seasonal Trends (This triggers the AI's Self-Learning)
+        if phase == "Regular":
+            # Standard organic purchases
+            if "PlayStation 5 Console" in basket and random.random() > 0.5:
+                basket.append("Spider-Man 2 (PS5)")
+            if "Mechanical Gaming Keyboard" in basket and random.random() > 0.4:
+                basket.append("Wireless Gaming Mouse")
+
+        elif phase == "Holiday":
+            # HUGE SHIFT: The "PS5 Holiday Bundle" trend takes over
+            if random.random() > 0.3:  # 70% chance to buy this bundle
+                basket.extend(["PlayStation 5 Console", "DualSense Wireless Controller", "Spider-Man 2 (PS5)"])
+            # Switch families buying gifts
+            if random.random() > 0.6:
+                basket.extend(["Nintendo Switch OLED", "Zelda: Tears of the Kingdom", "Switch Pro Controller"])
+                
+        elif phase == "Esports":
+            # ANOTHER SHIFT: Holiday is over, competitive PC gaming season starts
+            if random.random() > 0.3: # 70% chance for a PC setup upgrade
+                basket.extend(["Mechanical Gaming Keyboard", "Wireless Gaming Mouse", "XL RGB Mousepad", "27-inch 144Hz Gaming Monitor"])
+            if random.random() > 0.5:
+                basket.append("Noise-Cancelling Gaming Headset")
+
+        # 3. Add random impulse buys to create realistic data noise
+        num_random_items = random.randint(0, 2)
         basket.extend(random.choices(ITEMS, k=num_random_items))
         
         # Remove duplicates in the same basket, then format for CSV
         basket = list(set(basket))
         for item in basket:
-            transactions.append({"Transaction_ID": f"{season[:3]}_{i:04d}", "Item": item})
+            transactions.append({"Transaction_ID": f"{phase[:3]}_{i:04d}", "Item": item})
             
     return pd.DataFrame(transactions)
 
-# Generate the 3 datasets (1,500 transactions each)
-print("Generating Summer Data...")
-df_summer = generate_transactions(1500, "Summer")
-df_summer.to_csv("../data/dataset_A_summer.csv", index=False)
+# Generate the 3 datasets (1,500 transactions each - easily passing the 1,000 req)
+print("Generating Iteration 1: Regular Season Data...")
+df_regular = generate_transactions(1500, "Regular")
+df_regular.to_csv("../data/dataset_A_regular.csv", index=False)
 
-print("Generating Transition Data...")
-df_transition = generate_transactions(1500, "Transition")
-df_transition.to_csv("../data/dataset_B_transition.csv", index=False)
+print("Generating Iteration 2: Holiday Rush Data...")
+df_holiday = generate_transactions(1500, "Holiday")
+df_holiday.to_csv("../data/dataset_B_holiday.csv", index=False)
 
-print("Generating Winter Data...")
-df_winter = generate_transactions(1500, "Winter")
-df_winter.to_csv("../data/dataset_C_winter.csv", index=False)
+print("Generating Iteration 3: Esports Season Data...")
+df_esports = generate_transactions(1500, "Esports")
+df_esports.to_csv("../data/dataset_C_esports.csv", index=False)
 
-print("✅ Success! All datasets created in the /data/ folder.")
+print("✅ Success! All DataBlitz-style datasets created in the /data/ folder.")
