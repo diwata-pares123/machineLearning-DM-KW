@@ -28,9 +28,8 @@ with tab1:
     st.subheader("🧮 Engine Status & Rule Metrics")
     encoded_data = load_and_encode(st.session_state.current_dataset)
     display_rules = pd.DataFrame()
-    rules_text = "No strong rules found." # Default fallback
+    rules_text = "No strong rules found." 
     
-    # --- 🔍 LIVE DATA PREPROCESSING AUDIT UI ---
     st.markdown("### 🔍 Live Data Preprocessing Audit")
     st.caption("Proves to the panel that inputs are sanitized (duplicates removed) before hitting the FP-Growth Engine.")
     
@@ -61,17 +60,17 @@ with tab1:
             else:
                 st.caption("Waiting for next transaction...")
     st.markdown("---")
-    # -------------------------------------------
 
     if encoded_data is not None:
         freq_items, rules, applied_threshold = mine_patterns(encoded_data)
-        st.info(f"Engine auto-adjusted Min Support to **{applied_threshold*100}%** based on dataset density.")
+        st.info(f"Engine auto-adjusted Min Support to **{applied_threshold*100:.2f}%** based on dataset density.")
         
         if rules is not None and not rules.empty:
             display_rules = rules.copy()
             display_rules['antecedents'] = display_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
             display_rules['consequents'] = display_rules['consequents'].apply(lambda x: ', '.join(list(x)))
-            rules_text = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(10).to_string()
+            
+            rules_text = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'leverage', 'conviction']].head(10).to_string()
             
             cA, cB = st.columns(2)
             with cA:
@@ -81,16 +80,41 @@ with tab1:
                 st.write("**Top Antecedents by Support**")
                 bar_data = display_rules.groupby('antecedents')['support'].max().sort_values(ascending=False).head(5)
                 st.bar_chart(bar_data)
+                
+            # --- 💡 STRATEGIC INSIGHTS: PROMOS & TRAPS ---
+            st.markdown("---")
+            st.subheader("💡 Strategic Insights: Promos & Traps")
+            col_promo, col_trap = st.columns(2)
+            
+            with col_promo:
+                best_rule = display_rules.iloc[0] # Highest score rule
+                with st.container(border=True):
+                    st.success(f"**⚡ Recommended Campaign:** {best_rule.get('Business_Action', 'Highlight these items together.')}")
+                    st.write(f"**Target Audience:** Customers who add `{best_rule['antecedents']}` to their cart.")
+                    st.write(f"**Promoted Item:** `{best_rule['consequents']}`")
+                    st.caption(f"Math Justification: Lift = {best_rule['lift']:.2f} | Confidence = {best_rule['confidence']:.2f} | Conviction = {best_rule['conviction']:.2f}")
+
+            with col_trap:
+                worst_rule = display_rules.sort_values(by=['lift'], ascending=True).iloc[0] # Lowest lift rule
+                with st.container(border=True):
+                    st.error("**⚠️ Misleading Bundle Warning:** Avoid promoting this combo.")
+                    st.write(f"**Items:** `{worst_rule['antecedents']}` + `{worst_rule['consequents']}`")
+                    st.write("**Why it's a trap:** Even if they are bought together, buying X does NOT actively drive the purchase of Y. High coincidence, low correlation. Wasted ad spend.")
+                    st.caption(f"Math Justification: Lift = {worst_rule['lift']:.2f} (Near/Below 1.0) | Confidence = {worst_rule['confidence']:.2f}")
+
         else:
             st.warning("No patterns detected in this dataset.")
 
     if not display_rules.empty:
         st.markdown("---")
         st.subheader("📋 Full Market Basket Rules Table")
-        cols_to_drop = ['zhangs_metric', 'jaccard', 'certainty', 'kulczynski', 'BVS_Score']
-        clean_rules = display_rules.drop(columns=cols_to_drop, errors='ignore')
+        
+        clean_rules = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'leverage', 'conviction']].copy()
+        clean_rules = clean_rules.rename(columns={'antecedents': 'X', 'consequents': 'Y'})
+        clean_rules = clean_rules.sort_values(by=['lift'], ascending=False)
+        
         st.dataframe(
-            clean_rules.style.highlight_max(subset=['lift'], axis=0, color='#1e3a8a'), 
+            clean_rules.style.highlight_max(subset=['lift', 'leverage'], axis=0, color='#1e3a8a'), 
             use_container_width=True, 
             height=400
         )
@@ -103,13 +127,9 @@ with tab2:
     def process_transaction():
         basket = st.session_state.pos_basket
         if len(basket) > 0 and os.path.exists(st.session_state.current_dataset):
-            # PREPROCESSING: Deduplicate the POS input using set()
             clean_basket = list(set([item.strip() for item in basket if item.strip()]))
-            
-            # --- 🔍 LIVE AUDIT TRAIL CAPTURE ---
             st.session_state.demo_raw_cart = basket.copy()
             st.session_state.demo_clean_cart = clean_basket.copy()
-            # -----------------------------------
 
             new_tx_id = f"POS_LIVE_{random.randint(1000, 9999)}"
             with open(st.session_state.current_dataset, 'a', newline='') as f:
@@ -142,7 +162,7 @@ with tab2:
         df_manage = pd.read_csv(st.session_state.current_dataset, names=["Transaction_ID", "Item"])
         if not df_manage.empty:
             grouped_df = df_manage.groupby("Transaction_ID")["Item"].apply(list).reset_index()
-            recent_txs = grouped_df.tail(5).iloc[::-1] # Show last 5
+            recent_txs = grouped_df.tail(5).iloc[::-1] 
             
             for index, row in recent_txs.iterrows():
                 tx_id = row["Transaction_ID"]
@@ -159,10 +179,9 @@ with tab2:
                         col_item, col_del = st.columns([0.8, 0.2])
                         col_item.write(f"• {item}")
                         if col_del.button("🗑️ Remove", key=f"del_{tx_id}_{idx}"):
-                            # Drop just this specific row
                             drop_idx = df_manage[(df_manage['Transaction_ID'] == tx_id) & (df_manage['Item'] == item)].index
                             if not drop_idx.empty:
-                                df_manage = df_manage.drop(drop_idx[0]) # drop first occurrence
+                                df_manage = df_manage.drop(drop_idx[0]) 
                                 df_manage.to_csv(st.session_state.current_dataset, index=False, header=False)
                                 st.rerun()
 
@@ -192,14 +211,15 @@ with tab3:
                 with st.chat_message("user"): st.markdown(user_question)
             st.session_state.admin_messages.append({"role": "user", "content": user_question})
 
-            # --- 🧠 PREPARE LIVE DATA FOR THE AI'S BRAIN ---
-            # 1. Get Top Antecedents by Support (Formatting it as text)
             top_antecedents_text = "None calculated."
+            misleading_text = "None calculated." 
             if not display_rules.empty:
                 top_ants_df = display_rules.groupby('antecedents')['support'].max().sort_values(ascending=False).head(5)
                 top_antecedents_text = top_ants_df.to_string()
                 
-            # 2. Get Recent POS Transactions
+                misleading_df = display_rules.sort_values(by=['lift'], ascending=True).head(4)
+                misleading_text = misleading_df[['antecedents', 'consequents', 'confidence', 'lift']].to_string()
+                
             recent_tx_text = "No recent transactions found."
             if os.path.exists(st.session_state.current_dataset):
                 try:
@@ -209,7 +229,6 @@ with tab3:
                 except Exception:
                     pass
 
-            # --- 🛑 THE STRICT SYSTEM PROMPT ---
             system_prompt = f"""
             You are the Senior Data Scientist embedded in the Admin Back-Office of the Nexus Gaming Store.
             You DO have direct access to the live POS simulator, databases, and analytics because the backend explicitly provides them to you below.
@@ -220,18 +239,24 @@ with tab3:
             Top Antecedents by Support:
             {top_antecedents_text}
             
-            Full Market Basket Rules Table:
+            Top Strongest Market Basket Rules (X = Antecedent, Y = Consequent):
             {rules_text}
+            
+            Potentially Misleading Rules (Lowest Lift):
+            {misleading_text}
             
             Most Recent Raw Transactions (POS/Web):
             {recent_tx_text}
             ---------------------------
             
             STRICT BEHAVIORAL INSTRUCTIONS:
-            1. NEVER say "I don't have the ability to access or analyze your current market basket data." You ARE analyzing it right now. The exact data you need is provided in the LIVE SYSTEM METRICS above.
-            2. NEVER recommend external tools like IBM SPSS, Tableau, or Power BI. YOU are the built-in analytics tool for Nexus Gaming.
-            3. If the user asks for total transactions, top antecedents, or rules, simply read the metrics provided above and format them into a professional, easy-to-read response.
-            4. Speak technically. Explain the math. If Lift is > 1, emphasize the relationship.
+            1. NEVER say "I don't have the ability to access or analyze your current market basket data." You ARE analyzing it right now.
+            2. NEVER recommend external tools. YOU are the built-in analytics tool for Nexus Gaming.
+            3. Speak technically and use the data provided.
+            4. UNDERSTAND LEVERAGE & CONVICTION:
+               - Leverage: Support(A and C) - (Support(A) * Support(C)).
+               - Conviction: (1 - Support(C)) / (1 - Confidence(A -> C)).
+            5. EXPLAINING MISLEADING ITEMSETS: If asked about "misleading" itemsets, look at the "Potentially Misleading Rules (Lowest Lift)" section. Explain that even if Confidence is somewhat high, a Lift near or below 1.0 means the items are bought together mostly by coincidence. Tell the Director that creating a bundle or promo for these specific items would be a waste of marketing budget because buying item X does not actively drive the purchase of item Y.
             """
             
             try:
