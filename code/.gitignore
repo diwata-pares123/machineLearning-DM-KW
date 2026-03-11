@@ -1,0 +1,12 @@
+# Secret API Keys (CRITICAL)
+.streamlit/
+.env
+
+# Python Cache (Messy backend files)
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environments (Too big to upload)
+venv/
+env/

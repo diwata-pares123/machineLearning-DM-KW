@@ -18,106 +18,121 @@ AVAILABLE_ITEMS = [
     "1TB NVMe SSD", "Ergonomic Gaming Chair"
 ]
 
-st.title("💼 Admin Back-Office & Analytics")
+st.title("💼 Executive MBA Dashboard")
 st.caption(f"Currently Analyzing Data Phase: `{st.session_state.current_dataset.split('/')[-1]}`")
 
-tab1, tab2, tab3 = st.tabs(["📊 Live MBA Analytics", "🛒 Live POS Simulator", "🤖 AI Data Strategist"])
+tab1, tab2, tab3 = st.tabs(["📊 Business Insights", "🛒 Live POS Simulator", "🤖 AI Data Strategist"])
 
-# --- TAB 1: ANALYTICS ---
+# --- TAB 1: EXECUTIVE ANALYTICS ---
 with tab1:
-    st.subheader("🧮 Engine Status & Rule Metrics")
     encoded_data = load_and_encode(st.session_state.current_dataset)
     display_rules = pd.DataFrame()
     rules_text = "No strong rules found." 
-    
-    st.markdown("### 🔍 Live Data Preprocessing Audit")
-    st.caption("Proves to the panel that inputs are sanitized (duplicates removed) before hitting the FP-Growth Engine.")
-    
     total_txs = len(encoded_data) if encoded_data is not None else 0
-    col_metric, col_raw, col_clean = st.columns([0.2, 0.4, 0.4])
-    
-    with col_metric:
-        st.metric(label="Total Transactions Analyzed", value=total_txs)
-        
-    with col_raw:
-        with st.container(border=True):
-            st.write("🔴 **Raw User Input**")
-            if "demo_raw_cart" in st.session_state and st.session_state.demo_raw_cart:
-                for item in st.session_state.demo_raw_cart:
-                    st.write(f"- {item}")
-                st.caption(f"Count: {len(st.session_state.demo_raw_cart)} items")
-            else:
-                st.caption("Waiting for next transaction...")
-                
-    with col_clean:
-        with st.container(border=True):
-            st.write("🟢 **Preprocessed (Sent to AI)**")
-            if "demo_clean_cart" in st.session_state and st.session_state.demo_clean_cart:
-                for item in st.session_state.demo_clean_cart:
-                    st.write(f"- {item}")
-                dropped = len(st.session_state.demo_raw_cart) - len(st.session_state.demo_clean_cart)
-                st.caption(f"Count: {len(st.session_state.demo_clean_cart)} items ({dropped} duplicates dropped)")
-            else:
-                st.caption("Waiting for next transaction...")
-    st.markdown("---")
 
     if encoded_data is not None:
         freq_items, rules, applied_threshold = mine_patterns(encoded_data)
-        st.info(f"Engine auto-adjusted Min Support to **{applied_threshold*100:.2f}%** based on dataset density.")
         
+        # --- 1. KPI HEADLINES ---
+        st.subheader("📈 Live Performance Snapshot")
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        
+        total_rules = len(rules) if rules is not None else 0
+        max_lift = rules['lift'].max() if (rules is not None and not rules.empty) else 0
+        max_conf = rules['confidence'].max() if (rules is not None and not rules.empty) else 0
+        
+        kpi1.metric(label="Total Transactions", value=total_txs)
+        kpi2.metric(label="Active Bundles Found", value=total_rules)
+        kpi3.metric(label="Highest Synergy (Lift)", value=f"{max_lift:.2f}x" if max_lift else "N/A")
+        kpi4.metric(label="Highest Predictability", value=f"{max_conf*100:.1f}%" if max_conf else "N/A")
+        
+        st.info(f"🧠 **AI Engine Note:** The system auto-adjusted the minimum support threshold to **{applied_threshold*100:.2f}%** based on current dataset density.")
+        st.markdown("---")
+
         if rules is not None and not rules.empty:
             display_rules = rules.copy()
             display_rules['antecedents'] = display_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
             display_rules['consequents'] = display_rules['consequents'].apply(lambda x: ', '.join(list(x)))
-            
             rules_text = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'leverage', 'conviction']].head(10).to_string()
             
-            cA, cB = st.columns(2)
-            with cA:
-                st.write("**Confidence vs. Lift**")
-                st.scatter_chart(display_rules[['confidence', 'lift']], x='confidence', y='lift')
-            with cB:
-                st.write("**Top Antecedents by Support**")
-                bar_data = display_rules.groupby('antecedents')['support'].max().sort_values(ascending=False).head(5)
-                st.bar_chart(bar_data)
-                
-            # --- 💡 STRATEGIC INSIGHTS: PROMOS & TRAPS ---
-            st.markdown("---")
-            st.subheader("💡 Strategic Insights: Promos & Traps")
+            # --- 2. ACTIONABLE INSIGHTS (Put at the top for executives) ---
+            st.subheader("💡 Strategic Directives")
             col_promo, col_trap = st.columns(2)
             
             with col_promo:
-                best_rule = display_rules.iloc[0] # Highest score rule
+                best_rule = display_rules.iloc[0] 
                 with st.container(border=True):
-                    st.success(f"**⚡ Recommended Campaign:** {best_rule.get('Business_Action', 'Highlight these items together.')}")
-                    st.write(f"**Target Audience:** Customers who add `{best_rule['antecedents']}` to their cart.")
-                    st.write(f"**Promoted Item:** `{best_rule['consequents']}`")
-                    st.caption(f"Math Justification: Lift = {best_rule['lift']:.2f} | Confidence = {best_rule['confidence']:.2f} | Conviction = {best_rule['conviction']:.2f}")
+                    st.success(f"**⚡ Recommended Action:** {best_rule.get('Business_Action', 'Highlight these items together.')}")
+                    st.write(f"**If they buy:** `{best_rule['antecedents']}`")
+                    st.write(f"**Immediately recommend:** `{best_rule['consequents']}`")
+                    st.caption(f"Sales Probability: {best_rule['confidence']*100:.0f}% | Bundle Multiplier: {best_rule['lift']:.2f}x")
 
             with col_trap:
-                worst_rule = display_rules.sort_values(by=['lift'], ascending=True).iloc[0] # Lowest lift rule
+                worst_rule = display_rules.sort_values(by=['lift'], ascending=True).iloc[0] 
                 with st.container(border=True):
-                    st.error("**⚠️ Misleading Bundle Warning:** Avoid promoting this combo.")
+                    st.error("**⚠️ Budget Waste Warning:** Avoid running ads for this combo.")
                     st.write(f"**Items:** `{worst_rule['antecedents']}` + `{worst_rule['consequents']}`")
-                    st.write("**Why it's a trap:** Even if they are bought together, buying X does NOT actively drive the purchase of Y. High coincidence, low correlation. Wasted ad spend.")
-                    st.caption(f"Math Justification: Lift = {worst_rule['lift']:.2f} (Near/Below 1.0) | Confidence = {worst_rule['confidence']:.2f}")
+                    st.write("**Reason:** These items are bought together mostly by coincidence. Promoting them together will not increase overall sales.")
+                    st.caption(f"Bundle Multiplier: {worst_rule['lift']:.2f}x (Near or below 1.0 means no true synergy)")
+
+            st.markdown("---")
+            
+            # --- 3. VISUALIZATIONS ---
+            st.subheader("📊 Purchase Behavior Visualized")
+            cA, cB = st.columns(2)
+            
+            with cA:
+                st.write("**Synergy vs. Predictability**")
+                st.scatter_chart(display_rules[['confidence', 'lift']], x='confidence', y='lift', color="#1e3a8a")
+                st.caption("🔍 **How to read:** Dots higher up (High Lift) are the strongest synergies. Dots further to the right (High Confidence) are the most guaranteed sales.")
+                
+            with cB:
+                st.write("**Most Popular 'Trigger' Items**")
+                bar_data = display_rules.groupby('antecedents')['support'].max().sort_values(ascending=False).head(5)
+                st.bar_chart(bar_data, color="#10b981")
+                st.caption("🔍 **How to read:** These are the items that most frequently start a multi-item purchase. Put these on the homepage.")
+                
+            # --- 4. FORMATTED DATA TABLE ---
+            st.markdown("---")
+            st.subheader("📋 Detailed Rules Matrix")
+            st.caption("Sorted by strongest synergy. Values are formatted for easy reading.")
+            
+            clean_rules = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'leverage', 'conviction']].copy()
+            clean_rules = clean_rules.rename(columns={'antecedents': 'If They Buy (X)', 'consequents': 'Recommend (Y)'})
+            clean_rules = clean_rules.sort_values(by=['lift'], ascending=False)
+            
+            # Formats the table to show %, x, and limits decimals
+            styled_df = clean_rules.style.format({
+                'support': '{:.2%}',
+                'confidence': '{:.2%}',
+                'lift': '{:.2f}x',
+                'leverage': '{:.4f}',
+                'conviction': '{:.2f}'
+            }).highlight_max(subset=['lift'], axis=0, color='#1e3a8a')
+            
+            st.dataframe(styled_df, use_container_width=True, height=300)
 
         else:
-            st.warning("No patterns detected in this dataset.")
+            st.warning("No patterns detected in this dataset yet. Run more transactions.")
 
-    if not display_rules.empty:
-        st.markdown("---")
-        st.subheader("📋 Full Market Basket Rules Table")
-        
-        clean_rules = display_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift', 'leverage', 'conviction']].copy()
-        clean_rules = clean_rules.rename(columns={'antecedents': 'X', 'consequents': 'Y'})
-        clean_rules = clean_rules.sort_values(by=['lift'], ascending=False)
-        
-        st.dataframe(
-            clean_rules.style.highlight_max(subset=['lift', 'leverage'], axis=0, color='#1e3a8a'), 
-            use_container_width=True, 
-            height=400
-        )
+    # --- 5. THE AUDIT EXPANDER (Hidden from main view but accessible) ---
+    with st.expander("🛠️ Developer Audit: Data Preprocessing Logs"):
+        col_raw, col_clean = st.columns(2)
+        with col_raw:
+            st.write("🔴 **Raw User Input**")
+            if "demo_raw_cart" in st.session_state and st.session_state.demo_raw_cart:
+                for item in st.session_state.demo_raw_cart:
+                    st.write(f"- {item}")
+            else:
+                st.caption("Waiting for next transaction...")
+                
+        with col_clean:
+            st.write("🟢 **Cleaned Output (Duplicates Dropped)**")
+            if "demo_clean_cart" in st.session_state and st.session_state.demo_clean_cart:
+                for item in st.session_state.demo_clean_cart:
+                    st.write(f"- {item}")
+            else:
+                st.caption("Waiting for next transaction...")
 
 # --- TAB 2: POS SIMULATOR & LIVE DATA MANAGEMENT ---
 with tab2:
