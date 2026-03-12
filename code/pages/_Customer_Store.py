@@ -49,7 +49,11 @@ if encoded_data is not None:
                 unique_bundles.append({'items': list(full_set), 'lift': row['lift']})
                 seen_sets.add(bundle_id)
         
-        rules_text = rules[['antecedents', 'consequents']].head(10).to_string()
+        # --- NEW: Format rules into plain English for the AI ---
+        for _, row in rules.sort_values(by='lift', ascending=False).head(5).iterrows():
+            ant = ', '.join(list(row['antecedents']))
+            con = ', '.join(list(row['consequents']))
+            rules_text += f"- AI Bundle Alert: If the user buys {ant}, strongly recommend {con}!\n"
     else:
         rules_text = "No strong bundles today."
 
@@ -126,7 +130,6 @@ with tab2:
                         for potential in row['consequents']:
                             if potential not in current_cart_set:
                                 # Save the item AND the ML-generated promo text
-                                # Adding a fallback here just in case 'Business_Action' doesn't exist yet
                                 promo_text = row.get('Business_Action', "Pairs perfectly with your current cart!")
                                 suggestions[potential] = promo_text
             
@@ -195,21 +198,21 @@ with tab3:
 
             # --- 🛑 UPDATED STRICT CUSTOMER PROMPT ---
             system_prompt = f"""
-            You are Nexus, the friendly AI Shopping Assistant and virtual owner of the Nexus Gaming Store.
+            You are Nexus, the friendly AI Shopping Assistant and virtual salesperson of the Nexus Gaming Store.
             
             USER'S CURRENT CART: {current_cart_str}
             
             STORE BESTSELLERS (Most Purchased Items):
             {bestsellers_text}
             
-            FREQUENTLY BOUGHT TOGETHER (Market Basket Rules):
+            🔥 TODAY'S ACTIVE AI PROMO BUNDLES 🔥
             {rules_text}
             
             STRICT INSTRUCTIONS: 
-            1. NEVER invent, guess, or make up sales statistics, unit numbers, or percentages. 
-            2. If the user asks what the most purchased or bestselling item is, look ONLY at the STORE BESTSELLERS list above and state those exact items.
-            3. Use the Market Basket Rules to suggest pairings based on what is in their cart.
-            4. Be conversational, welcoming, and helpful, but stay strictly grounded in the data provided.
+            1. NEVER say "we don't have pre-defined bundles." You MUST enthusiastically recommend the pairings listed in the "TODAY'S ACTIVE AI PROMO BUNDLES" section.
+            2. If the user asks what is on sale or what is bundled, pitch the bundles from the list above.
+            3. If the user has an item in their cart, check if it matches a bundle and aggressively (but politely) suggest the pairing!
+            4. Never invent or guess metrics. Stay strictly grounded in the data provided.
             """
             
             payload = {
